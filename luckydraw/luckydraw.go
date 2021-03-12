@@ -28,7 +28,7 @@ type Prize struct {
 	Desc   string `json:"desc"`
 }
 
-type Lottery struct {
+type Draw struct {
 	name         string
 	prizes       map[int]Prize
 	participants map[string]Participant
@@ -62,8 +62,8 @@ var (
 func init() {
 }
 
-func New(name string) *Lottery {
-	l := &Lottery{
+func New(name string) *Draw {
+	l := &Draw{
 		name,
 		make(map[int]Prize),
 		make(map[string]Participant),
@@ -74,24 +74,24 @@ func New(name string) *Lottery {
 	return l
 }
 
-func (l *Lottery) SetPrize(no int, name string, amount int, desc string) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) SetPrize(no int, name string, amount int, desc string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	prize := Prize{no, name, amount, desc}
-	l.prizes[no] = prize
+	d.prizes[no] = prize
 }
 
-func (l *Lottery) Prize(no int) Prize {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Prize(no int) Prize {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	return l.prizes[no]
+	return d.prizes[no]
 }
 
-func (l *Lottery) LoadPrizesCSV(r io.Reader) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) LoadPrizesCSV(r io.Reader) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	reader := csv.NewReader(r)
 	rows, err := reader.ReadAll()
@@ -99,7 +99,7 @@ func (l *Lottery) LoadPrizesCSV(r io.Reader) error {
 		return err
 	}
 
-	l.prizes = make(map[int]Prize)
+	d.prizes = make(map[int]Prize)
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
 
@@ -117,19 +117,19 @@ func (l *Lottery) LoadPrizesCSV(r io.Reader) error {
 		}
 		desc := row[3]
 
-		l.prizes[no] = Prize{no, name, amount, desc}
+		d.prizes[no] = Prize{no, name, amount, desc}
 	}
 	return nil
 }
 
-func (l *Lottery) LoadPrizesCSVFile(file string) error {
+func (d *Draw) LoadPrizesCSVFile(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return l.LoadPrizesCSV(f)
+	return d.LoadPrizesCSV(f)
 }
 
 func prizeMapToSlice(m map[int]Prize, descOrder bool) []Prize {
@@ -156,16 +156,16 @@ func prizeMapToSlice(m map[int]Prize, descOrder bool) []Prize {
 	return prizes
 }
 
-func (l *Lottery) Prizes(descOrder bool) []Prize {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Prizes(descOrder bool) []Prize {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	return prizeMapToSlice(l.prizes, descOrder)
+	return prizeMapToSlice(d.prizes, descOrder)
 }
 
-func (l *Lottery) LoadParticipantsCSV(r io.Reader) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) LoadParticipantsCSV(r io.Reader) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	reader := csv.NewReader(r)
 	rows, err := reader.ReadAll()
@@ -173,7 +173,7 @@ func (l *Lottery) LoadParticipantsCSV(r io.Reader) error {
 		return err
 	}
 
-	l.participants = make(map[string]Participant)
+	d.participants = make(map[string]Participant)
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
 		if len(row) != 2 {
@@ -181,19 +181,19 @@ func (l *Lottery) LoadParticipantsCSV(r io.Reader) error {
 		}
 		ID := row[0]
 		name := row[1]
-		l.participants[ID] = Participant{ID, name}
+		d.participants[ID] = Participant{ID, name}
 	}
 	return nil
 }
 
-func (l *Lottery) LoadParticipantsCSVFile(file string) error {
+func (d *Draw) LoadParticipantsCSVFile(file string) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return l.LoadParticipantsCSV(f)
+	return d.LoadParticipantsCSV(f)
 }
 
 func participantMapToSlice(m map[string]Participant) []Participant {
@@ -216,11 +216,11 @@ func participantSliceToMap(s []Participant) map[string]Participant {
 	return m
 }
 
-func (l *Lottery) Participants() []Participant {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Participants() []Participant {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	return participantMapToSlice(l.participants)
+	return participantMapToSlice(d.participants)
 }
 
 func copyParticipantMap(m map[string]Participant) map[string]Participant {
@@ -233,11 +233,11 @@ func copyParticipantMap(m map[string]Participant) map[string]Participant {
 	return copiedMap
 }
 
-func (l *Lottery) availableParticipants(prizeNo int) []Participant {
-	participants := copyParticipantMap(l.participants)
+func (d *Draw) availableParticipants(prizeNo int) []Participant {
+	participants := copyParticipantMap(d.participants)
 
 	// Remove winners
-	for _, winners := range l.winners {
+	for _, winners := range d.winners {
 		for _, winner := range winners {
 			delete(participants, winner.ID)
 		}
@@ -246,22 +246,22 @@ func (l *Lottery) availableParticipants(prizeNo int) []Participant {
 	return participantMapToSlice(participants)
 }
 
-func (l *Lottery) AvailableParticipants(prizeNo int) []Participant {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) AvailableParticipants(prizeNo int) []Participant {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	return l.availableParticipants(prizeNo)
+	return d.availableParticipants(prizeNo)
 }
 
-func (l *Lottery) Winners(prizeNo int) []Participant {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Winners(prizeNo int) []Participant {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	if _, ok := l.winners[prizeNo]; !ok {
+	if _, ok := d.winners[prizeNo]; !ok {
 		return []Participant{}
 	}
 
-	return l.winners[prizeNo]
+	return d.winners[prizeNo]
 }
 
 func removeParticipant(s []Participant, i int) []Participant {
@@ -303,57 +303,57 @@ func draw(prizeAmount int, participants []Participant) []Participant {
 	return winners
 }
 
-func (l *Lottery) Draw(prizeNo int) ([]Participant, error) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Draw(prizeNo int) ([]Participant, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	winners := []Participant{}
 
-	if _, ok := l.prizes[prizeNo]; !ok {
+	if _, ok := d.prizes[prizeNo]; !ok {
 		return winners, ErrPrizeNo
 	}
 
-	amount := l.prizes[prizeNo].Amount
+	amount := d.prizes[prizeNo].Amount
 	if amount < 1 {
 		return winners, ErrPrizeAmount
 	}
 
-	if _, ok := l.winners[prizeNo]; ok {
+	if _, ok := d.winners[prizeNo]; ok {
 		return winners, ErrWinnersExistBeforeDraw
 	}
 
-	participants := l.availableParticipants(prizeNo)
+	participants := d.availableParticipants(prizeNo)
 	if len(participants) == 0 {
 		return winners, ErrNoAvailableParticipants
 	}
 
 	winners = draw(amount, participants)
 
-	l.winners[prizeNo] = winners
+	d.winners[prizeNo] = winners
 	return winners, nil
 }
 
 // Revoke revokes the winners of the given prize.
 // It'll remove revoked winners from winners of the prize.
-func (l *Lottery) Revoke(prizeNo int, revokedWinners []Participant) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Revoke(prizeNo int, revokedWinners []Participant) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	if _, ok := l.prizes[prizeNo]; !ok {
+	if _, ok := d.prizes[prizeNo]; !ok {
 		return ErrPrizeNo
 	}
 
-	amount := l.prizes[prizeNo].Amount
+	amount := d.prizes[prizeNo].Amount
 	if amount < 1 {
 		return ErrPrizeAmount
 	}
 
-	if _, ok := l.winners[prizeNo]; !ok {
+	if _, ok := d.winners[prizeNo]; !ok {
 		return ErrNoOriginalWinnersBeforeRedraw
 	}
 
 	// Remove original winners for the prize before re-draw.
-	originalWinnerMap := participantSliceToMap(l.winners[prizeNo])
+	originalWinnerMap := participantSliceToMap(d.winners[prizeNo])
 
 	for _, revokedWinner := range revokedWinners {
 		if _, ok := originalWinnerMap[revokedWinner.ID]; !ok {
@@ -362,33 +362,33 @@ func (l *Lottery) Revoke(prizeNo int, revokedWinners []Participant) error {
 		delete(originalWinnerMap, revokedWinner.ID)
 	}
 
-	l.winners[prizeNo] = participantMapToSlice(originalWinnerMap)
+	d.winners[prizeNo] = participantMapToSlice(originalWinnerMap)
 	return nil
 }
 
-func (l *Lottery) Redraw(prizeNo int, amount int) ([]Participant, error) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Redraw(prizeNo int, amount int) ([]Participant, error) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	winners := []Participant{}
 
-	if _, ok := l.prizes[prizeNo]; !ok {
+	if _, ok := d.prizes[prizeNo]; !ok {
 		return winners, ErrPrizeNo
 	}
 
-	if l.prizes[prizeNo].Amount < 1 {
+	if d.prizes[prizeNo].Amount < 1 {
 		return winners, ErrPrizeAmount
 	}
 
-	if _, ok := l.winners[prizeNo]; !ok {
+	if _, ok := d.winners[prizeNo]; !ok {
 		return winners, ErrWinnersNotExistBeforeReDraw
 	}
 
-	if amount > l.prizes[prizeNo].Amount-len(l.winners[prizeNo]) {
+	if amount > d.prizes[prizeNo].Amount-len(d.winners[prizeNo]) {
 		return winners, ErrRedrawPrizeAmount
 	}
 
-	participants := l.availableParticipants(prizeNo)
+	participants := d.availableParticipants(prizeNo)
 	if len(participants) == 0 {
 		return winners, ErrNoAvailableParticipants
 	}
@@ -397,30 +397,30 @@ func (l *Lottery) Redraw(prizeNo int, amount int) ([]Participant, error) {
 	winners = draw(amount, participants)
 
 	// Append new winners and original winners.
-	l.winners[prizeNo] = append(l.winners[prizeNo], winners...)
+	d.winners[prizeNo] = append(d.winners[prizeNo], winners...)
 	return winners, nil
 }
 
-func (l *Lottery) AllWinners() map[int][]Participant {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) AllWinners() map[int][]Participant {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	return l.winners
+	return d.winners
 }
 
-func (l *Lottery) ClearWinners(prizeNo int) {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) ClearWinners(prizeNo int) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	// Clear the winner slice.
-	l.winners[prizeNo] = []Participant{}
+	d.winners[prizeNo] = []Participant{}
 }
 
-func (l *Lottery) ClearAllWinners() {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) ClearAllWinners() {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
-	l.winners = make(map[int][]Participant)
+	d.winners = make(map[int][]Participant)
 }
 
 func makeDataFileName(name string) string {
@@ -453,17 +453,17 @@ func computeWinnersHash(winners map[int][]Participant) []byte {
 	return h.Sum(nil)
 }
 
-func (l *Lottery) Save(w io.Writer) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Save(w io.Writer) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	tm := time.Now()
 
 	data := SaveData{
-		l.name,
-		l.prizes,
-		l.participants,
-		l.winners,
+		d.name,
+		d.prizes,
+		d.participants,
+		d.winners,
 		fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d",
 			tm.Year(),
 			tm.Month(),
@@ -472,7 +472,7 @@ func (l *Lottery) Save(w io.Writer) error {
 			tm.Minute(),
 			tm.Second(),
 		),
-		fmt.Sprintf("%X", computeWinnersHash(l.winners)),
+		fmt.Sprintf("%X", computeWinnersHash(d.winners)),
 	}
 
 	enc := json.NewEncoder(w)
@@ -480,8 +480,8 @@ func (l *Lottery) Save(w io.Writer) error {
 	return enc.Encode(&data)
 }
 
-func (l *Lottery) SaveToFile() error {
-	dataFile := makeDataFileName(l.name)
+func (d *Draw) SaveToFile() error {
+	dataFile := makeDataFileName(d.name)
 
 	f, err := os.Create(dataFile)
 	if err != nil {
@@ -489,12 +489,12 @@ func (l *Lottery) SaveToFile() error {
 	}
 	defer f.Close()
 
-	return l.Save(f)
+	return d.Save(f)
 }
 
-func (l *Lottery) Load(r io.Reader) error {
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
+func (d *Draw) Load(r io.Reader) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 
 	data := SaveData{}
 	dec := json.NewDecoder(r)
@@ -508,28 +508,28 @@ func (l *Lottery) Load(r io.Reader) error {
 		return ErrChecksum
 	}
 
-	l.prizes = data.Prizes
-	l.participants = data.Participants
-	l.winners = data.Winners
+	d.prizes = data.Prizes
+	d.participants = data.Participants
+	d.winners = data.Winners
 
 	// Check if map is nil
-	if l.prizes == nil {
-		l.prizes = make(map[int]Prize)
+	if d.prizes == nil {
+		d.prizes = make(map[int]Prize)
 	}
 
-	if l.participants == nil {
-		l.participants = make(map[string]Participant)
+	if d.participants == nil {
+		d.participants = make(map[string]Participant)
 	}
 
-	if l.winners == nil {
-		l.winners = make(map[int][]Participant)
+	if d.winners == nil {
+		d.winners = make(map[int][]Participant)
 	}
 
 	return nil
 }
 
-func (l *Lottery) LoadFromFile() error {
-	dataFile := makeDataFileName(l.name)
+func (d *Draw) LoadFromFile() error {
+	dataFile := makeDataFileName(d.name)
 
 	f, err := os.Open(dataFile)
 	if err != nil {
@@ -537,11 +537,11 @@ func (l *Lottery) LoadFromFile() error {
 	}
 	defer f.Close()
 
-	return l.Load(f)
+	return d.Load(f)
 }
 
-func (l *Lottery) DataFileExists() bool {
-	dataFile := makeDataFileName(l.name)
+func (d *Draw) DataFileExists() bool {
+	dataFile := makeDataFileName(d.name)
 
 	if _, err := os.Stat(dataFile); os.IsNotExist(err) {
 		return false
